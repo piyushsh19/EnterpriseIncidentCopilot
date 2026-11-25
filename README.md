@@ -7,7 +7,7 @@ falls back to **Tavily** web search when internal docs don't cover it, checks it
 hallucinations and usefulness, and remembers each incident's conversation in **SQLite**.
 Every request is audit-logged.
 
-**Stack:** LangGraph · OpenAI (`gpt-4o`, `gpt-4o-mini`, `text-embedding-3-small`) · Pinecone
+**Stack:** LangGraph · local LLMs via **Ollama** (`qwen2.5:7b`, `nomic-embed-text`) or OpenAI · Pinecone
 serverless · Tavily · FastAPI · plain HTML/CSS/JS · SQLite · Docker
 
 ---
@@ -73,28 +73,39 @@ Each phase ends with a **done check**. Don't move on until it passes.
 
 ### Phase 0 — Setup (Day 1, ~1 h)
 
-1. **Get API keys**
-   - OpenAI: https://platform.openai.com/api-keys
+1. **Install Ollama and pull the local models** (free, runs on your Mac)
+   ```bash
+   brew install ollama
+   brew services start ollama          # keeps the Ollama server running in the background
+   ollama pull qwen2.5:7b              # ~4.7 GB, answers + graders
+   ollama pull nomic-embed-text        # ~270 MB, embeddings (768 dims)
+   ollama list                         # both should be listed
+   ```
+   No Homebrew? Download the app from https://ollama.com/download instead.
+   To use OpenAI instead, set `LLM_PROVIDER=openai` and the OpenAI model names in `.env`
+   (see `.env.example`), with `EMBEDDING_DIM=1536` and a matching index name.
+2. **Get API keys**
+   - OpenAI (only if `LLM_PROVIDER=openai`): https://platform.openai.com/api-keys
    - Pinecone: https://app.pinecone.io → API Keys
    - Tavily: https://app.tavily.com
-2. **Create your env file**
+3. **Create your env file**
    ```bash
    cp .env.example .env
    ```
    Open `.env` and paste the three keys.
-3. **Create the virtualenv and install**
+4. **Create the virtualenv and install**
    ```bash
    python3.12 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
    (or `make install`). In VS Code: `Cmd+Shift+P` → *Python: Select Interpreter* → `.venv`.
-4. **Check OpenAI + Pinecone** — this also creates the `incident-kb` index (1536 dims, cosine):
+5. **Check the model + Pinecone** — this also creates the `incident-kb-768` index (768 dims, cosine):
    ```bash
    python scripts/check_setup.py
    ```
 
-✅ **Done when** it prints `Embedding OK, dim=1536` and `Pinecone OK, match: setup-check`.
+✅ **Done when** it prints `Embedding OK, dim=768` and `Pinecone OK, match: setup-check`.
 
 Files: `app/config.py`, `app/services/llm.py`, `app/services/vectorstore.py`
 
@@ -223,13 +234,15 @@ restart, and all tests pass.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `OPENAI_API_KEY` | — | required |
+| `LLM_PROVIDER` | `ollama` | `ollama` (local) or `openai` |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Docker overrides to `host.docker.internal` |
+| `OPENAI_API_KEY` | — | only for `LLM_PROVIDER=openai` |
 | `PINECONE_API_KEY` | — | required |
 | `TAVILY_API_KEY` | — | required for web fallback |
-| `LLM_MODEL` | `gpt-4o` | final answer model |
-| `GRADER_MODEL` | `gpt-4o-mini` | graders, rewrites, contextualize |
-| `EMBEDDING_MODEL` / `EMBEDDING_DIM` | `text-embedding-3-small` / `1536` | must match the index |
-| `PINECONE_INDEX` / `_CLOUD` / `_REGION` | `incident-kb` / `aws` / `us-east-1` | serverless index |
+| `LLM_MODEL` | `qwen2.5:7b` | final answer model |
+| `GRADER_MODEL` | `qwen2.5:7b` | graders, rewrites, contextualize |
+| `EMBEDDING_MODEL` / `EMBEDDING_DIM` | `nomic-embed-text` / `768` | must match the index |
+| `PINECONE_INDEX` / `_CLOUD` / `_REGION` | `incident-kb-768` / `aws` / `us-east-1` | serverless index |
 | `RETRIEVAL_K` | `4` | chunks retrieved |
 | `MAX_REWRITES` / `MAX_GENERATIONS` | `2` / `3` | Self-RAG loop caps |
 | `WEB_RESULTS` | `3` | Tavily results |
@@ -249,6 +262,9 @@ make docker-up   # build + run container
 ```
 
 ## Troubleshooting
+
+- **`Connection refused` on port 11434** → Ollama isn't running: `brew services start ollama`.
+- **Slow answers** → each question makes several model calls (graders); `qwen2.5:7b` takes a few seconds each on Apple Silicon. Try `qwen2.5:14b` for quality or `qwen2.5:3b` for speed.
 
 - **Everything goes to web search** → grader too strict; loosen `GRADE_DOCUMENT_PROMPT` and
   check that `seed_ingest.py` actually ingested docs.

@@ -3,6 +3,9 @@ services:
     build: .
     container_name: incident-copilot
     env_file: .env
+    environment:
+      # reach Ollama running on your Mac from inside the container
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
       - "8000:8000"
     volumes:

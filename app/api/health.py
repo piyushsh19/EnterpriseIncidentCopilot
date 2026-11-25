@@ -7,11 +7,20 @@ from app.db.session import get_conn
 router = APIRouter(tags=["health"])
 
 
+def _ollama_up(base_url: str) -> bool:
+    import urllib.request
+    try:
+        urllib.request.urlopen(f"{base_url}/api/version", timeout=2)
+        return True
+    except Exception:
+        return False
+
+
 @router.get("/health")
 def health() -> dict:
     s = get_settings()
     checks = {
-        "openai_key": bool(s.openai_api_key),
+        "llm": _ollama_up(s.ollama_base_url) if s.llm_provider == "ollama" else bool(s.openai_api_key),
         "pinecone_key": bool(s.pinecone_api_key),
         "tavily_key": bool(s.tavily_api_key),
     }

@@ -12,14 +12,18 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     tavily_api_key: str = ""
 
-    # Models
-    llm_model: str = "gpt-4o"            # final answer generation
-    grader_model: str = "gpt-4o-mini"    # cheap structured graders
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dim: int = 1536
+    # Provider: "ollama" (local, free) or "openai"
+    llm_provider: str = "ollama"
+    ollama_base_url: str = "http://localhost:11434"
 
-    # Pinecone
-    pinecone_index: str = "incident-kb"
+    # Models (names depend on the provider)
+    llm_model: str = "qwen2.5:7b"          # final answer generation
+    grader_model: str = "qwen2.5:7b"       # structured yes/no graders
+    embedding_model: str = "nomic-embed-text"
+    embedding_dim: int = 768               # nomic-embed-text=768, text-embedding-3-small=1536
+
+    # Pinecone (index dimension must equal embedding_dim)
+    pinecone_index: str = "incident-kb-768"
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
