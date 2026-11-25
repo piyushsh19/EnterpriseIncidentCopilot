@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Incident Response Copilot</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header><h1>Incident Response Copilot</h1><span id="health">checking…</span></header>
+  <main>
+    <aside id="incidents">
+      <h2>Incidents</h2>
+      <form id="new-incident">
+        <input name="title" placeholder="Title, e.g. RDS CPU 98%" required />
+        <input name="service" placeholder="Service (rds, k8s, redis…)" />
+        <select name="severity"><option>Sev1</option><option>Sev2</option><option selected>Sev3</option><option>Sev4</option></select>
+        <button>New incident</button>
+      </form>
+      <ul id="incident-list"></ul>
+    </aside>
+
+    <section id="chat">
+      <h2 id="chat-title">Select an incident</h2>
+      <div id="messages"></div>
+      <form id="ask"><input name="message" placeholder="Describe symptoms…" disabled /><button disabled>Ask</button></form>
+    </section>
+
+    <aside id="side">
+      <h2>Runbooks</h2>
+      <form id="upload"><input type="file" name="file" /><input name="service" placeholder="Service" /><button>Upload</button></form>
+      <ul id="doc-list"></ul>
+      <h2>Audit log</h2>
+      <table id="audit"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>ms</th></tr></thead><tbody></tbody></table>
+    </aside>
+  </main>
+  <div id="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

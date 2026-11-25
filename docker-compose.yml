@@ -1,0 +1,13 @@
+services:
+  copilot:
+    build: .
+    container_name: incident-copilot
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite_data:/app/data/sqlite
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
