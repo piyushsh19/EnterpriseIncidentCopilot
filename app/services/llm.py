@@ -4,6 +4,10 @@ from functools import lru_cache
 from app.config import get_settings
 
 
+def llm_service_name() -> str:
+    return "Ollama" if get_settings().llm_provider == "ollama" else "OpenAI"
+
+
 def _chat(model: str, timeout: int):
     s = get_settings()
     if s.llm_provider == "ollama":

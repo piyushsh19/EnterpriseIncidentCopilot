@@ -36,8 +36,25 @@ Context:
 
 Question: {question}"""
 
-HALLUCINATION_PROMPT = """Is the answer below fully grounded in / supported by the facts?
-Answer 'yes' or 'no'.
+RETRY_GENERATION_NOTE = """
+
+IMPORTANT: your previous draft was rejected because it contained steps or facts that are
+not in the context. Write a shorter answer using ONLY what the context says. If the context
+only covers part of the question (for example only the escalation path), give that part and
+say plainly that the runbook does not cover the rest."""
+
+HALLUCINATION_PROMPT = """You check whether an incident answer is grounded in the facts.
+
+Answer 'yes' when every specific troubleshooting step, command, metric, threshold and
+escalation rule in the answer appears in (or is a close paraphrase of) the facts.
+These are ALLOWED and do not make an answer ungrounded:
+- section headings, summaries and rewording of the facts
+- a probable cause inferred directly from the facts
+- saying that the facts do not cover something
+- safety notes such as "CONFIRM FIRST" or "verify before applying"
+
+Answer 'no' only if the answer adds a specific step, command, tool, number or claim
+that is NOT in the facts.
 
 Facts:
 {documents}

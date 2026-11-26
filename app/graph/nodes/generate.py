@@ -3,7 +3,8 @@ from langchain_core.messages import AIMessage
 
 from app.graph import prompts
 from app.graph.state import GraphState
-from app.services.llm import get_llm
+from app.services.llm import get_llm, llm_service_name
+from app.services.retry import call_upstream
 
 
 def format_docs(docs) -> str:
@@ -16,9 +17,11 @@ def format_docs(docs) -> str:
 
 def generate(state: GraphState) -> dict:
     context = format_docs(state.get("documents", []))
-    answer = get_llm().invoke(
-        prompts.GENERATE_PROMPT.format(context=context, question=state["question"])
-    ).content
+    prompt = prompts.GENERATE_PROMPT.format(context=context, question=state["question"])
+    if state.get("generation_count", 0) > 0:  # regenerating after a failed grounding check
+        prompt += prompts.RETRY_GENERATION_NOTE
+    llm = get_llm()
+    answer = call_upstream(llm_service_name(), lambda: llm.invoke(prompt)).content
     return {
         "generation": answer,
         "generation_count": state.get("generation_count", 0) + 1,

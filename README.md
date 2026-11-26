@@ -187,20 +187,33 @@ Open http://localhost:8000/docs (Swagger) and try each endpoint:
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | key + SQLite checks |
+| GET | `/health` | quick checks; `?deep=true` also calls the LLM, embeddings and Pinecone |
 | POST | `/api/incidents` | create incident `{title, service, severity}` |
-| GET | `/api/incidents` | list incidents |
-| POST | `/api/chat` | `{incident_id, message}` → answer, sources, route_trace |
+| GET | `/api/incidents` | list incidents, optional `?status=` |
+| GET | `/api/incidents/{id}` | one incident |
+| PATCH | `/api/incidents/{id}` | change `status` (open/investigating/mitigated/resolved) or `severity` |
+| POST | `/api/chat` | `{incident_id, message}` → answer, status, sources, route_trace, grader_scores |
 | GET | `/api/chat/{incident_id}/history` | conversation from the checkpointer |
-| POST | `/api/ingest` | multipart upload (pdf/md/txt/docx, ≤10 MB) |
+| POST | `/api/ingest` | multipart upload (pdf/md/txt/docx, ≤10 MB), optional `service`, `doc_type` |
 | GET | `/api/documents` | indexed documents |
-| GET | `/api/audit` | audit rows, filter by `incident_id` / `status` |
+| GET | `/api/audit` | audit rows, filter by `incident_id`, `action`, `status`, `limit` |
 
-Every chat call writes one row to `audit_log` (user from the `X-User` header, question,
-doc ids, `web_used`, `route_trace`, grader scores, latency, status/error).
+Send an `X-User: <name>` header to record who made the request (default `anonymous`).
 
-TODO in this phase: deep health checks (`?deep=true`), retry with backoff on upstream calls,
-audit `degraded` status when Tavily fails.
+**Audit log.** Every chat call writes exactly one row to `audit_log`, even when it fails:
+user, question, rewritten queries, doc ids used, `web_used`, `route_trace`, grader scores
+(including each answer check), latency and status. Incident changes and uploads are audited too.
+
+| Status | Meaning |
+|---|---|
+| `ok` | grounded, useful answer |
+| `degraded` | safe "escalate" answer (loop limits hit) or web search failed |
+| `error` | an outside service failed after a retry (API returned 502) or an internal error (500) |
+
+**Errors.** 400 bad file or empty patch · 404 unknown incident · 413 file over 10 MB ·
+422 invalid body (empty/blank message, bad severity) · 502 Ollama/OpenAI/Pinecone/Tavily down.
+Every outside call is retried once with backoff (`app/services/retry.py`). A Tavily failure
+does not fail the request: the graph returns the safe answer and the audit row says `degraded`.
 
 ✅ **Done when** every endpoint works in Swagger and each chat call adds exactly one audit row.
 

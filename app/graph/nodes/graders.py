@@ -2,7 +2,8 @@
 from pydantic import BaseModel, Field
 
 from app.graph import prompts
-from app.services.llm import get_grader_llm
+from app.services.llm import get_grader_llm, llm_service_name
+from app.services.retry import call_upstream
 
 
 class BinaryScore(BaseModel):
@@ -11,7 +12,7 @@ class BinaryScore(BaseModel):
 
 def _grade(prompt: str) -> bool:
     llm = get_grader_llm().with_structured_output(BinaryScore)
-    result = llm.invoke(prompt)
+    result = call_upstream(llm_service_name(), lambda: llm.invoke(prompt))
     return result.binary_score.strip().lower() == "yes"
 
 

@@ -3,21 +3,25 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
 from app.config import get_settings
 from app.db.session import get_conn
 from app.ingestion.pipeline import ingest_file
 from app.services.audit import write_audit
+from app.services.retry import UpstreamError
 
 router = APIRouter(tags=["ingestion"])
 
 
 @router.post("/ingest")
 async def ingest(file: UploadFile = File(...), service: Optional[str] = Form(None),
-                 doc_type: Optional[str] = Form(None)) -> dict:
+                 doc_type: Optional[str] = Form(None),
+                 x_user: str = Header(default="anonymous")) -> dict:
     s = get_settings()
     ext = Path(file.filename or "").suffix.lower()
+    if doc_type and doc_type not in ("runbook", "sop", "postmortem"):
+        raise HTTPException(400, "doc_type must be runbook, sop or postmortem")
     if ext not in s.allowed_extensions.split(","):
         raise HTTPException(400, f"Unsupported file type '{ext}'")
     data = await file.read()
@@ -31,9 +35,16 @@ async def ingest(file: UploadFile = File(...), service: Optional[str] = Form(Non
         path.write_bytes(data)
         try:
             result = ingest_file(path, service=service, doc_type=doc_type)
-        except ValueError as exc:
+        except ValueError as exc:  # empty / scanned / unreadable file
+            write_audit(user=x_user, action="ingest", question=file.filename,
+                        status="rejected", error=str(exc))
             raise HTTPException(400, str(exc))
-    write_audit(action="ingest", question=file.filename, status=result["status"])
+        except Exception as exc:  # embeddings or Pinecone down
+            write_audit(user=x_user, action="ingest", question=file.filename,
+                        status="error", error=str(exc))
+            raise HTTPException(502, f"Could not index the file: {exc}")
+    write_audit(user=x_user, action="ingest", question=file.filename, status=result["status"],
+                doc_ids=[result["doc_id"]])
     return result
 
 

@@ -4,4 +4,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/sqlite/*.db
+data/sqlite/*.db-shm
+data/sqlite/*.db-wal
 .DS_Store
