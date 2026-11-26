@@ -11,7 +11,7 @@ def contextualize(state: GraphState) -> dict:
     history = state.get("messages", [])[:-1]  # exclude the message just added
     trace = state.get("route_trace", []) + ["contextualize"]
     reset = {"rewrite_count": 0, "generation_count": 0, "web_used": False,
-             "original_question": question}
+             "original_question": question, "grader_scores": {}}
     if not history:
         return {**reset, "route_trace": trace}
 

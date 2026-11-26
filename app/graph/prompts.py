@@ -9,9 +9,11 @@ Chat history:
 Follow-up: {question}
 Standalone question:"""
 
-GRADE_DOCUMENT_PROMPT = """You grade whether a retrieved document is relevant to an
-incident question. If it contains keywords or meaning related to the question, answer 'yes'.
-Otherwise answer 'no'.
+GRADE_DOCUMENT_PROMPT = """You check retrieved documents for an incident response copilot.
+Answer 'yes' if the document is about the same system, service or symptom as the question,
+or contains any cause, troubleshooting step or escalation path that could help answer it,
+even partially. Answer 'no' only if the document is about an unrelated system or problem.
+Be lenient: a separate check catches unsupported answers later.
 
 Document:
 {document}

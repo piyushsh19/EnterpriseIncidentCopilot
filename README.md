@@ -33,7 +33,7 @@ serverless · Tavily · FastAPI · plain HTML/CSS/JS · SQLite · Docker
    │transform_query│   │  ▲     (rewrites used up)  │
    └──────────────┘   │  │ not grounded → retry     │
           ▲           ▼  │                          │
-          │     grade_generation ─── useful ──► finalize ──► END
+          │   check_answer → grade_generation ─ useful ─► finalize ─► END
           └──── not useful
 ```
 
@@ -147,11 +147,18 @@ The core of the project. Open these side by side:
 - `app/graph/edges.py` — the two routers that make it self-correcting
 - `app/graph/builder.py` — the wiring shown in the diagram above
 
+- `check_answer` (in `edges.py`) is a node, not just a router, so the hallucination and
+  usefulness verdicts are saved in `grader_scores` for the audit log. If web search comes back
+  empty, the graph goes straight to the safe "escalate" answer instead of answering from nothing.
+
 Work through it:
-1. Run `scripts/ask.py` with a vague question ("db is cooked") and watch `route:` show a
-   `transform_query` loop.
-2. Tune grader prompts if everything is graded "no" (common first problem).
-3. Run the unit tests: `pytest tests/unit -q`.
+1. Docs declare their service in a `Service: rds` header line; ingestion stores it as metadata.
+   After changing docs or metadata, re-index with `python scripts/seed_ingest.py --force`.
+2. Run `scripts/ask.py` with questions in and out of the knowledge base and read the `route:` line.
+3. Tune `GRADE_DOCUMENT_PROMPT` if relevant docs are graded "no" (the common first problem:
+   the grader is meant to be lenient, the answer checks are strict).
+4. Run the tests: `pytest -q`. `tests/integration/test_graph_paths.py` runs the real graph with
+   fake models for scenarios S1–S11, so it needs no API keys or Ollama.
 
 ✅ **Done when** scenarios S1–S7 from the plan reproduce and `route_trace` matches the expected path.
 

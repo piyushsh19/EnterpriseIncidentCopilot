@@ -7,7 +7,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
 from app.config import get_settings
-from app.graph.edges import decide_to_generate, grade_generation
+from app.graph.edges import after_web_search, check_answer, decide_to_generate, grade_generation
 from app.graph.nodes.contextualize import contextualize
 from app.graph.nodes.generate import finalize, generate, give_up
 from app.graph.nodes.grade_documents import grade_documents
@@ -25,6 +25,7 @@ def build_workflow() -> StateGraph:
     g.add_node("transform_query", transform_query)
     g.add_node("web_search", web_search)
     g.add_node("generate", generate)
+    g.add_node("check_answer", check_answer)
     g.add_node("give_up", give_up)
     g.add_node("finalize", finalize)
 
@@ -38,8 +39,10 @@ def build_workflow() -> StateGraph:
         "give_up": "give_up",
     })
     g.add_edge("transform_query", "retrieve")
-    g.add_edge("web_search", "generate")
-    g.add_conditional_edges("generate", grade_generation, {
+    g.add_conditional_edges("web_search", after_web_search,
+                            {"generate": "generate", "give_up": "give_up"})
+    g.add_edge("generate", "check_answer")
+    g.add_conditional_edges("check_answer", grade_generation, {
         "generate": "generate",
         "transform_query": "transform_query",
         "useful": "finalize",
