@@ -1,4 +1,4 @@
-.PHONY: install check seed ask run test docker-up docker-down
+.PHONY: install check seed ask run test e2e docker-up docker-seed docker-restart docker-logs docker-down
 
 PYTHON ?= python3.12
 
@@ -20,8 +20,20 @@ run:
 test:
 	.venv/bin/pytest -q
 
+e2e:
+	E2E_BASE_URL=http://localhost:8000 .venv/bin/pytest tests/e2e -v
+
 docker-up:
 	docker compose up --build -d
+
+docker-seed:
+	docker compose exec copilot python scripts/seed_ingest.py
+
+docker-restart:
+	docker compose restart
+
+docker-logs:
+	docker compose logs -f
 
 docker-down:
 	docker compose down

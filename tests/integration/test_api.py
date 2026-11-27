@@ -129,3 +129,9 @@ def test_s16_bad_files_rejected(client, monkeypatch):
     monkeypatch.setattr(ingest_api, "ingest_file", no_text)
     r = client.post("/api/ingest", files={"file": ("scan.pdf", b"%PDF-1.4")})
     assert r.status_code == 400 and "No extractable text" in r.json()["detail"]
+
+
+def test_delete_document(client, monkeypatch):
+    monkeypatch.setattr(ingest_api, "delete_document", lambda doc_id: doc_id == "d1")
+    assert client.delete("/api/documents/d1").json()["status"] == "deleted"
+    assert client.delete("/api/documents/nope").status_code == 404

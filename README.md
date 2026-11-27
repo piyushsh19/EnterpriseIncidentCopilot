@@ -196,6 +196,7 @@ Open http://localhost:8000/docs (Swagger) and try each endpoint:
 | GET | `/api/chat/{incident_id}/history` | conversation from the checkpointer |
 | POST | `/api/ingest` | multipart upload (pdf/md/txt/docx, ≤10 MB), optional `service`, `doc_type` |
 | GET | `/api/documents` | indexed documents |
+| DELETE | `/api/documents/{doc_id}` | remove a document's vectors and record |
 | GET | `/api/audit` | audit rows, filter by `incident_id`, `action`, `status`, `limit` |
 
 Send an `X-User: <name>` header to record who made the request (default `anonymous`).
@@ -250,20 +251,36 @@ runbook, ask again and see it cited.
 
 ### Phase 7 — Docker, tests, demo (Day 3, ~2 h)
 
-```bash
-docker compose up --build -d       # or: make docker-up
-docker compose exec copilot python scripts/seed_ingest.py
-docker compose logs -f
-```
-Open http://localhost:8000. SQLite files live in the `sqlite_data` volume, so
-`docker compose restart` keeps incidents, memory and the audit log.
+**Run it in Docker.** Ollama keeps running on your Mac; the container reaches it at
+`host.docker.internal:11434` (set in `docker-compose.yml`).
 
-Tests:
 ```bash
-pytest -q
+docker compose up --build -d                                  # make docker-up
+docker compose exec copilot python scripts/seed_ingest.py     # make docker-seed (first time)
+docker compose logs -f                                        # make docker-logs
 ```
-Fill in `tests/integration/test_graph_paths.py` (mock the LLM + Tavily, assert
-`route_trace` per scenario) and `tests/e2e/test_api_smoke.py`.
+
+Open http://localhost:8000. The container runs as a non-root user with one uvicorn worker
+and a health check on `/health`. Incidents, chat memory and the audit log live in the
+`sqlite_data` volume, so they survive `docker compose restart` and rebuilds.
+`docker compose down -v` deletes that volume (and all history).
+
+**Tests.**
+
+```bash
+pytest -q          # 34 unit + integration tests, fake models, no keys or Ollama needed
+make e2e           # 8 end-to-end tests against the running container (real models)
+```
+
+| Suite | What it covers |
+|---|---|
+| `tests/unit` | routers, answer checks, chunker, service detection |
+| `tests/integration/test_graph_paths.py` | the real graph with fake models: scenarios S1–S11 |
+| `tests/integration/test_api.py` | every endpoint, validation, audit rows, 502s (S8, S13–S20) |
+| `tests/e2e` | deep health, UI served, chat + memory, duplicate upload, bad requests (cleans up after itself) |
+
+**Demo.** Follow [DEMO.md](DEMO.md): a 10-minute walkthrough of S1, S9, S4, ingestion,
+the safety net and the audit log.
 
 ✅ **Done when** `docker compose up` on a clean machine serves the UI, memory survives a
 restart, and all tests pass.
@@ -299,6 +316,8 @@ make ask         # CLI question
 make run         # dev server with reload
 make test        # pytest
 make docker-up   # build + run container
+make docker-seed # load sample runbooks inside the container
+make e2e         # end-to-end tests against the container
 ```
 
 ## Troubleshooting

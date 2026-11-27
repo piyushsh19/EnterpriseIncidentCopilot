@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
 from app.config import get_settings
 from app.db.session import get_conn
-from app.ingestion.pipeline import ingest_file
+from app.ingestion.pipeline import delete_document, ingest_file
 from app.services.audit import write_audit
 from app.services.retry import UpstreamError
 
@@ -52,3 +52,15 @@ async def ingest(file: UploadFile = File(...), service: Optional[str] = Form(Non
 def documents() -> list:
     with get_conn() as conn:
         return [dict(r) for r in conn.execute("SELECT * FROM documents ORDER BY ingested_at DESC")]
+
+
+@router.delete("/documents/{doc_id}")
+def remove_document(doc_id: str, x_user: str = Header(default="anonymous")) -> dict:
+    try:
+        found = delete_document(doc_id)
+    except Exception as exc:
+        raise HTTPException(502, f"Could not delete vectors: {exc}")
+    if not found:
+        raise HTTPException(404, f"Unknown doc_id '{doc_id}'")
+    write_audit(user=x_user, action="document_delete", question=doc_id, status="ok", doc_ids=[doc_id])
+    return {"doc_id": doc_id, "status": "deleted"}

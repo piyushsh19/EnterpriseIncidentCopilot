@@ -263,7 +263,8 @@ async function loadDocs() {
   const docs = await api("/api/documents");
   $("#doc-list").innerHTML = docs.length
     ? docs.map((d) => `
-      <li><div class="name">${esc(d.filename)}</div>
+      <li><button class="del" type="button" data-doc="${esc(d.doc_id)}" data-name="${esc(d.filename)}" title="Remove from the index">✕</button>
+      <div class="name">${esc(d.filename)}</div>
       <div class="meta">${esc(d.doc_type)} · ${esc(d.service || "general")} · ${esc(d.chunks)} chunk${d.chunks === 1 ? "" : "s"} · ${timeAgo(d.ingested_at)}</div></li>`).join("")
     : '<li class="muted">No documents indexed yet. Run <code>python scripts/seed_ingest.py</code> or upload one above.</li>';
 }
@@ -309,6 +310,14 @@ function upload(form) {
     loadAudit();
   }
 }
+
+$("#doc-list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button.del");
+  if (!btn || !confirm(`Remove ${btn.dataset.name} from the index? The copilot will stop citing it.`)) return;
+  await api(`/api/documents/${encodeURIComponent(btn.dataset.doc)}`, { method: "DELETE" });
+  toast(`Removed ${btn.dataset.name}`, "ok");
+  loadDocs(); loadAudit();
+});
 
 // ---------- audit ----------
 async function loadAudit() {

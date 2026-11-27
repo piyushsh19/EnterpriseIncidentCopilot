@@ -137,7 +137,9 @@ details summary { cursor: pointer; user-select: none; }
 .progress { height: 6px; background: #eef0f3; border-radius: 3px; overflow: hidden; }
 .progress div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
 .doc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.doc-list li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.doc-list li { position: relative; padding: 8px 30px 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.doc-list .del { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: var(--faint); padding: 2px 6px; }
+.doc-list .del:hover { color: var(--bad); }
 .doc-list .name { font-weight: 600; overflow-wrap: anywhere; }
 .doc-list .meta { font-size: 12px; color: var(--faint); }
 .filters { margin-bottom: 6px; }

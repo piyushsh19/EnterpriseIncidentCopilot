@@ -1,15 +1,18 @@
 services:
   copilot:
     build: .
+    image: incident-copilot:latest
     container_name: incident-copilot
     env_file: .env
     environment:
-      # reach Ollama running on your Mac from inside the container
+      # Reach Ollama running on your Mac from inside the container
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # needed on Linux, harmless on Mac
     ports:
       - "8000:8000"
     volumes:
-      - sqlite_data:/app/data/sqlite
+      - sqlite_data:/app/data/sqlite          # incidents, audit log, chat memory
     restart: unless-stopped
 
 volumes:

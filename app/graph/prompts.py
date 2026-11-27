@@ -1,7 +1,9 @@
 """Phase 2-3: all prompt templates in one place so they are easy to tune."""
 
-CONTEXTUALIZE_PROMPT = """Given the chat history and a follow-up question, rewrite the
-follow-up as a standalone question about the same incident. Do not answer it.
+CONTEXTUALIZE_PROMPT = """Rewrite the follow-up as a standalone search question about the SAME incident.
+The standalone question MUST name the specific system or service and the symptom from the
+chat history (for example "RDS high CPU" or "Kubernetes CrashLoopBackOff"), because it will
+be used to search runbooks without the history. Do not answer it. Return only the question.
 
 Chat history:
 {history}

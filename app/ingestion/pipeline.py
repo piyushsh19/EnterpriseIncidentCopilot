@@ -64,3 +64,15 @@ def ingest_file(path: Path, service: Optional[str] = None, doc_type: Optional[st
              datetime.now(timezone.utc).isoformat()),
         )
     return {"doc_id": doc_id, "status": "updated" if old else "ingested", "chunks": len(docs)}
+
+
+def delete_document(doc_id: str) -> bool:
+    """Remove a document's vectors from Pinecone and its row from the documents table."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT chunks FROM documents WHERE doc_id=?", (doc_id,)).fetchone()
+    if not row:
+        return False
+    get_vectorstore().delete(ids=[f"{doc_id}-{i}" for i in range(row["chunks"])])
+    with get_conn() as conn:
+        conn.execute("DELETE FROM documents WHERE doc_id=?", (doc_id,))
+    return True
