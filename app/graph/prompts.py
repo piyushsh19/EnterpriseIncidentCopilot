@@ -62,8 +62,12 @@ Facts:
 Answer:
 {generation}"""
 
-ANSWER_USEFULNESS_PROMPT = """Does the answer below actually resolve the question
-(gives a cause and actionable steps, not just restating symptoms)? Answer 'yes' or 'no'.
+ANSWER_USEFULNESS_PROMPT = """You check whether an incident answer is useful to the on-call engineer.
+
+Answer 'yes' if it gives at least one concrete check, troubleshooting step, mitigation or
+escalation path that applies to the question. A short answer is fine, and it does not need
+to name a root cause.
+Answer 'no' only if it just restates the symptoms, refuses, or is about a different problem.
 
 Question: {question}
 Answer: {generation}"""
@@ -77,4 +81,9 @@ Question: {question}"""
 INSUFFICIENT_EVIDENCE = (
     "I could not find enough grounded evidence to answer this safely. "
     "Please escalate to the on-call lead and attach the incident details."
+)
+
+PARTIAL_EVIDENCE = (
+    "I couldn't write a fully verified answer, so here is exactly what the matching "
+    "runbook says. Nothing below was added by the model."
 )

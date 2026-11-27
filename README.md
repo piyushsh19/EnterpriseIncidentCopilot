@@ -219,11 +219,31 @@ does not fail the request: the graph returns the safe answer and the audit row s
 
 ### Phase 6 — Incident management UI (Day 3, ~2–3 h)
 
-Open http://localhost:8000. The starter UI in `app/static/` already has:
-incident list + "New incident" form · chat with source chips (green = internal, orange = web)
-and a "How I got this" route trace · runbook upload · audit table.
+```bash
+make run      # then open http://localhost:8000
+```
 
-Improve: loading spinners, markdown rendering of answers, audit filters, status changes.
+Plain HTML, CSS and JavaScript in `app/static/`, served by FastAPI. No build step.
+
+- **Top bar:** your name (sent as `X-User`, saved in the browser, shows up in the audit log)
+  and a health dot. Hover it for each check; click it for a deep check.
+- **Left, incidents:** create an incident (title, service, severity), filter by status.
+  Each row shows severity, status and age.
+- **Centre, chat:** answers render as formatted sections (cause, numbered steps, escalation).
+  `CONFIRM FIRST` and web-sourced steps are highlighted. Under each answer:
+  status (`ok` / `degraded`), source chips (📘 your runbooks, 🌐 web links that open the page)
+  and **How I got this** with the node path and each answer check. A spinner with a timer
+  shows while the model works. Suggested follow-ups appear under the answer.
+  Change the incident's status or severity from the dropdowns at the top.
+- **Right, Runbooks tab:** drag a file in (or click), optional service and type, upload
+  progress bar, and the list of indexed documents.
+- **Right, Audit log tab:** latest 50 rows, filter by action, status or "only this incident";
+  click a row for the full detail (docs, route, grader verdicts, errors).
+
+All text from users, documents and the model is escaped before display.
+
+If the answer checks keep failing but a relevant runbook was found, the safe answer now
+quotes that runbook word for word (marked `degraded`) instead of only saying "escalate".
 
 ✅ **Done when** in the browser you can create an incident, ask, follow up, upload a new
 runbook, ask again and see it cited.

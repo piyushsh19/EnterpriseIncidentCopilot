@@ -7,34 +7,134 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <header><h1>Incident Response Copilot</h1><span id="health">checking…</span></header>
-  <main>
-    <aside id="incidents">
-      <h2>Incidents</h2>
-      <form id="new-incident">
-        <input name="title" placeholder="Title, e.g. RDS CPU 98%" required />
-        <input name="service" placeholder="Service (rds, k8s, redis…)" />
-        <select name="severity"><option>Sev1</option><option>Sev2</option><option selected>Sev3</option><option>Sev4</option></select>
-        <button>New incident</button>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◆</span>
+      <h1>Incident Response Copilot</h1>
+    </div>
+    <div class="topbar-right">
+      <label class="user-field">
+        <span>You</span>
+        <input id="user-name" placeholder="your name" maxlength="40" autocomplete="off" />
+      </label>
+      <button id="health" class="health" type="button" title="Service health">
+        <span class="dot"></span><span class="label">Checking…</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: incidents -->
+    <aside class="panel incidents">
+      <div class="panel-head">
+        <h2>Incidents</h2>
+        <select id="incident-filter" aria-label="Filter incidents by status">
+          <option value="">All</option>
+          <option value="open">Open</option>
+          <option value="investigating">Investigating</option>
+          <option value="mitigated">Mitigated</option>
+          <option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <form id="new-incident" class="stack">
+        <input name="title" placeholder="What's happening? e.g. Orders API slow" required minlength="3" maxlength="200" />
+        <div class="row">
+          <input name="service" placeholder="Service (rds, k8s…)" maxlength="50" />
+          <select name="severity" aria-label="Severity">
+            <option>Sev1</option><option>Sev2</option><option selected>Sev3</option><option>Sev4</option>
+          </select>
+        </div>
+        <button class="primary" type="submit">New incident</button>
       </form>
-      <ul id="incident-list"></ul>
+      <ul id="incident-list" class="incident-list"></ul>
     </aside>
 
-    <section id="chat">
-      <h2 id="chat-title">Select an incident</h2>
-      <div id="messages"></div>
-      <form id="ask"><input name="message" placeholder="Describe symptoms…" disabled /><button disabled>Ask</button></form>
+    <!-- Center: chat -->
+    <section class="panel chat">
+      <div id="chat-empty" class="empty">
+        <p class="empty-title">Pick an incident or create one</p>
+        <p>Describe the symptoms and the copilot answers from your runbooks, SOPs and postmortems, falling back to the web when they don't cover it.</p>
+      </div>
+      <div id="chat-main" hidden>
+        <div class="chat-head">
+          <div>
+            <div class="chat-id" id="chat-id"></div>
+            <h2 id="chat-title" class="chat-title"></h2>
+          </div>
+          <div class="chat-controls">
+            <select id="chat-severity" aria-label="Severity">
+              <option>Sev1</option><option>Sev2</option><option>Sev3</option><option>Sev4</option>
+            </select>
+            <select id="chat-status" aria-label="Status">
+              <option value="open">Open</option>
+              <option value="investigating">Investigating</option>
+              <option value="mitigated">Mitigated</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+        </div>
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <div id="suggestions" class="suggestions"></div>
+        <form id="ask" class="ask">
+          <textarea name="message" rows="2" placeholder="Describe symptoms or ask a follow-up… (Enter to send, Shift+Enter for a new line)" maxlength="4000"></textarea>
+          <button class="primary" type="submit">Ask</button>
+        </form>
+      </div>
     </section>
 
-    <aside id="side">
-      <h2>Runbooks</h2>
-      <form id="upload"><input type="file" name="file" /><input name="service" placeholder="Service" /><button>Upload</button></form>
-      <ul id="doc-list"></ul>
-      <h2>Audit log</h2>
-      <table id="audit"><thead><tr><th>Time</th><th>Action</th><th>Status</th><th>ms</th></tr></thead><tbody></tbody></table>
+    <!-- Right: runbooks + audit -->
+    <aside class="panel side">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="runbooks" role="tab">Runbooks</button>
+        <button class="tab" data-tab="audit" role="tab">Audit log</button>
+      </div>
+
+      <div id="tab-runbooks" class="tab-body">
+        <form id="upload" class="stack">
+          <label class="drop" id="drop">
+            <input type="file" name="file" accept=".pdf,.md,.txt,.docx" />
+            <span id="drop-label">Drop a file or click to choose<br /><small>PDF, Markdown, TXT, DOCX · max 10 MB</small></span>
+          </label>
+          <div class="row">
+            <input name="service" placeholder="Service (optional)" maxlength="50" />
+            <select name="doc_type" aria-label="Document type">
+              <option value="">Auto type</option>
+              <option value="runbook">Runbook</option>
+              <option value="sop">SOP</option>
+              <option value="postmortem">Postmortem</option>
+            </select>
+          </div>
+          <div id="upload-progress" class="progress" hidden><div></div></div>
+          <button class="primary" type="submit">Upload &amp; index</button>
+        </form>
+        <ul id="doc-list" class="doc-list"></ul>
+      </div>
+
+      <div id="tab-audit" class="tab-body" hidden>
+        <div class="row filters">
+          <select id="audit-action" aria-label="Filter by action">
+            <option value="">All actions</option>
+            <option value="chat">Chat</option>
+            <option value="ingest">Ingest</option>
+            <option value="incident_create">Incident created</option>
+            <option value="incident_update">Incident updated</option>
+          </select>
+          <select id="audit-status" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="ok">ok</option>
+            <option value="degraded">degraded</option>
+            <option value="error">error</option>
+            <option value="duplicate">duplicate</option>
+            <option value="rejected">rejected</option>
+          </select>
+        </div>
+        <label class="check"><input type="checkbox" id="audit-this" /> Only this incident</label>
+        <div id="audit-list" class="audit-list"></div>
+      </div>
     </aside>
   </main>
-  <div id="toast" hidden></div>
+
+  <div id="toasts" class="toasts" aria-live="assertive"></div>
   <script src="/static/app.js"></script>
 </body>
 </html>

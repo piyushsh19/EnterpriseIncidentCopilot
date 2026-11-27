@@ -13,7 +13,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from app.graph import edges
 from app.graph.builder import build_workflow
 from app.graph.nodes import contextualize, generate, grade_documents, retrieve, transform_query
-from app.graph.prompts import INSUFFICIENT_EVIDENCE
+from app.graph.prompts import INSUFFICIENT_EVIDENCE, PARTIAL_EVIDENCE
 
 RDS = Document(page_content="RDS high CPU: check Top SQL", metadata={"title": "runbook_rds_high_cpu", "doc_type": "runbook"})
 K8S = Document(page_content="CrashLoopBackOff: kubectl logs --previous", metadata={"title": "runbook_k8s", "doc_type": "runbook"})
@@ -145,7 +145,7 @@ def test_s7_loop_limits_give_safe_answer(fakes, graph):
     r = ask(graph, "RDS CPU at 98%")
     assert r["generation_count"] == 3
     assert "give_up" in r["route_trace"]
-    assert r["generation"] == INSUFFICIENT_EVIDENCE
+    assert r["generation"].startswith(PARTIAL_EVIDENCE)   # quotes the runbook, never guesses
 
 
 def test_s8_web_search_fails_safely(fakes, graph):
@@ -170,3 +170,12 @@ def test_s11_incidents_are_isolated(fakes, graph):
     r = ask(graph, "Pods restarting", thread="INC-b")
     assert len(r["messages"]) == 2
     assert fakes.aux_llm.prompts == []   # no history -> contextualize skipped the LLM
+
+
+def test_s7b_give_up_quotes_relevant_runbook(fakes, graph):
+    fakes.grounded = [True]
+    fakes.useful = [False]           # never useful -> rewrites, then give up
+    r = ask(graph, "RDS CPU at 98%")
+    assert "give_up" in r["route_trace"]
+    assert "RDS high CPU: check Top SQL" in r["generation"]   # verbatim runbook text
+    assert "runbook_rds_high_cpu" in r["generation"]

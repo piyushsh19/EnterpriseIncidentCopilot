@@ -36,6 +36,16 @@ def finalize(state: GraphState) -> dict:
 
 
 def give_up(state: GraphState) -> dict:
-    """Loop limits hit: return a safe answer instead of a guess."""
-    return {"generation": prompts.INSUFFICIENT_EVIDENCE,
-            "route_trace": state.get("route_trace", []) + ["give_up"]}
+    """Loop limits hit: never guess. If we did find relevant documents, quote them
+    verbatim (grounded by construction) so the engineer still has something to act on."""
+    docs = [d for d in state.get("documents", []) if d.metadata.get("doc_type") != "web"]
+    if docs:
+        excerpts = "\n\n".join(
+            f"**From {d.metadata.get('title') or d.metadata.get('source')}**\n{d.page_content[:1200].strip()}"
+            for d in docs[:2]
+        )
+        answer = (f"{prompts.PARTIAL_EVIDENCE}\n\n{excerpts}\n\n"
+                  "**Escalation**\nIf these steps don't resolve it, escalate to the on-call lead.")
+    else:
+        answer = prompts.INSUFFICIENT_EVIDENCE
+    return {"generation": answer, "route_trace": state.get("route_trace", []) + ["give_up"]}
